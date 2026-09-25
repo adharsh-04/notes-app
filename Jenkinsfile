@@ -2,9 +2,9 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_CREDENTIALS = 'dockerhub'
-        BACKEND_IMAGE = 'adharsh04/notes-backend'
-        FRONTEND_IMAGE = 'adharsh04/notes-frontend'
+        DOCKER_HUB_CREDENTIALS = credentials('dockerhub')   // configure in Jenkins
+        DOCKER_IMAGE_BACKEND   = "your-dockerhub-username/notes-backend"
+        DOCKER_IMAGE_FRONTEND  = "your-dockerhub-username/notes-frontend"
     }
 
     stages {
@@ -15,39 +15,34 @@ pipeline {
         }
 
         stage('Build Backend') {
-            agent {
-                docker {
-                    image 'maven:3.9.6-eclipse-temurin-17'
-                    args '-v $HOME/.m2:/root/.m2'
-                }
-            }
             steps {
-                sh 'mvn -f backend/notes-app/pom.xml clean package -DskipTests'
+                script {
+                    docker.image('maven:3.9.6-eclipse-temurin-17').inside {
+                        sh 'mvn clean package -DskipTests'
+                    }
+                }
             }
         }
 
         stage('Build Frontend') {
-            agent {
-                docker {
-                    image 'node:18'
-                }
-            }
             steps {
-                dir('frontend') {
-                    sh 'npm install'
-                    sh 'npm run build'
+                script {
+                    docker.image('node:18').inside {
+                        sh 'npm install'
+                        sh 'npm run build'
+                    }
                 }
             }
         }
 
         stage('Docker Build & Push') {
             steps {
-                withCredentials([usernamePassword(credentialsId: DOCKERHUB_CREDENTIALS, usernameVariable: 'USER', passwordVariable: 'PASS')]) {
-                    sh "echo $PASS | docker login -u $USER --password-stdin"
-                    sh "docker build -t $BACKEND_IMAGE:latest backend/notes-app"
-                    sh "docker build -t $FRONTEND_IMAGE:latest frontend"
-                    sh "docker push $BACKEND_IMAGE:latest"
-                    sh "docker push $FRONTEND_IMAGE:latest"
+                script {
+                    sh "docker build -t $DOCKER_IMAGE_BACKEND:latest -f backend/Dockerfile ."
+                    sh "docker build -t $DOCKER_IMAGE_FRONTEND:latest -f frontend/Dockerfile ."
+                    sh "echo $DOCKER_HUB_CREDENTIALS_PSW | docker login -u $DOCKER_HUB_CREDENTIALS_USR --password-stdin"
+                    sh "docker push $DOCKER_IMAGE_BACKEND:latest"
+                    sh "docker push $DOCKER_IMAGE_FRONTEND:latest"
                 }
             }
         }
