@@ -15,12 +15,23 @@ pipeline {
         }
 
         stage('Build Backend') {
+            agent {
+                docker {
+                    image 'maven:3.9.6-eclipse-temurin-17'
+                    args '-v $HOME/.m2:/root/.m2'
+                }
+            }
             steps {
                 sh 'mvn -f backend/notes-app/pom.xml clean package -DskipTests'
             }
         }
 
         stage('Build Frontend') {
+            agent {
+                docker {
+                    image 'node:18'
+                }
+            }
             steps {
                 dir('frontend') {
                     sh 'npm install'
